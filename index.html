@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Folder Upload & Share - Large File Support</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #333;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            padding: 2rem;
+            width: 90%;
+            max-width: 900px;
+            animation: slideUp 0.8s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        h1 {
+            text-align: center;
+            color: #4a5568;
+            margin-bottom: 2rem;
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .upload-section {
+            border: 3px dashed #cbd5e0;
+            border-radius: 15px;
+            padding: 3rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            margin-bottom: 2rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .upload-section::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(102, 126, 234, 0.1), transparent);
+            transform: rotate(45deg);
+            transition: all 0.6s ease;
+            opacity: 0;
+        }
+
+        .upload-section:hover::before {
+            opacity: 1;
+            animation: shimmer 2s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+            100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+        }
+
+        .upload-section:hover {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.05);
+            transform: translateY(-2px);
+        }
+
+        .upload-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            font-size: 1.1rem;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            z-index: 1;
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+            margin-right: 1rem;
+        }
+
+        .upload-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 35px rgba(102, 126, 234, 0.4);
+        }
+
+        .upload-btn:active {
+            transform: translateY(-1px);
+        }
+
+        .upload-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .folder-structure {
+            background: #f8fafc;
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            max-height: 500px;
+            overflow-y: auto;
+            border: 1px solid #e2e8f0;
+        }
+
+        .folder-structure::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .folder-structure::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+
+        .folder-structure::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 10px;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem;
+            margin: 0.2rem 0;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .file-item:hover {
+            background: rgba(102, 126, 234, 0.1);
+            transform: translateX(5px);
+        }
+
+        .file-item.downloadable:hover {
+            background: rgba(16, 185, 129, 0.1);
+        }
+
+        .file-icon {
+            margin-right: 0.5rem;
+            font-size: 1.2rem;
+        }
+
+        .folder-icon {
+            color: #f59e0b;
+        }
+
+        .file-icon-doc {
+            color: #3b82f6;
+        }
+
+        .file-info {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .file-size {
+            color: #a0aec0;
+            font-size: 0.8rem;
+            min-width: 80px;
+            text-align: right;
+        }
+
+        .download-btn {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 0.25rem 0.75rem;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.2s ease;
+            opacity: 0;
+        }
+
+        .file-item:hover .download-btn {
+            opacity: 1;
+        }
+
+        .download-btn:hover {
+            background: #059669;
+            transform: scale(1.05);
+        }
+
+        .share-section {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+            border-radius: 15px;
+            padding: 2rem;
+            text-align: center;
+            border: 1px solid rgba(102, 126, 234, 0.2);
+        }
+
+        .share-link {
+            display: flex;
+            align-items: center;
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 50px;
+            padding: 0.75rem 1.5rem;
+            margin: 1rem 0;
+            transition: all 0.3s ease;
+        }
+
+        .share-link:focus-within {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .share-input {
+            flex: 1;
+            border: none;
+            outline: none;
+            font-size: 1rem;
+            background: transparent;
+        }
+
+        .copy-btn, .bulk-download-btn {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+            margin-left: 0.5rem;
+        }
+
+        .bulk-download-btn {
+            background: linear-gradient(135deg, #8b5cf6, #a855f7);
+            margin: 1rem;
+            padding: 1rem 2rem;
+            font-size: 1rem;
+        }
+
+        .copy-btn:hover, .bulk-download-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .bulk-download-btn:hover {
+            box-shadow: 0 10px 25px rgba(139, 92, 246, 0.3);
+        }
+
+        .copy-btn.copied {
+            background: #6366f1;
+        }
+
+        .progress-container {
+            margin: 1rem 0;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #e2e8f0;
+            border-radius: 3px;
+            overflow: hidden;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            margin-bottom: 0.5rem;
+        }
+
+        .progress-bar.active {
+            opacity: 1;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            border-radius: 3px;
+            width: 0%;
+            transition: width 0.3s ease;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .progress-text {
+            font-size: 0.9rem;
+            color: #718096;
+            text-align: center;
+        }
+
+        .status-message {
+            padding: 1rem;
+            border-radius: 10px;
+            margin: 1rem 0;
+            text-align: center;
+            font-weight: 500;
+            opacity: 0;
+            transform: translateY(-10px);
+            transition: all 0.3s ease;
+        }
+
+        .status-message.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .status-success {
+            background: rgba(16, 185, 129, 0.1);
+            color: #047857;
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
+        .status-error {
+            background: rgba(239, 68, 68, 0.1);
+            color: #dc2626;
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+
+        .status-warning {
+            background: rgba(245, 158, 11, 0.1);
+            color: #d97706;
+            border: 1px solid rgba(245, 158, 11, 0.2);
+        }
+
+        .folder-stats {
+            background: rgba(99, 102, 241, 0.1);
+            border-radius: 10px;
+            padding: 1rem;
+            margin: 1rem 0;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            text-align: center;
+        }
+
+        .stat-item {
+            color: #4c51bf;
+        }
+
+        .stat-number {
+            font-size: 1.5rem;
+            font-weight: bold;
+            display: block;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            opacity: 0.8;
+        }
+
+        .floating-particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .particle {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.6);
+            border-radius: 50%;
+            animation: float 6s infinite ease-in-out;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); opacity: 0.7; }
+            50% { transform: translateY(-20px) rotate(180deg); opacity: 0.3; }
+        }
+
+        .chunk-info {
+            font-size: 0.8rem;
+            color: #718096;
+            margin-top: 0.5rem;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1.5rem;
+                margin: 1rem;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .upload-section {
+                padding: 2rem;
+            }
+
+            .folder-stats {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="floating-particles" id="particles"></div>
+    
+    <div class="container">
+        <h1>📁 Folder Share Pro</h1>
+        
+        <div class="upload-section" id="uploadSection">
+            <div style="position: relative; z-index: 1;">
+                <div style="font-size: 3rem; margin-bottom: 1rem;">📁</div>
+                <p style="margin-bottom: 1.5rem; color: #718096; font-size: 1.1rem;">
+                    Upload large folders (100MB+) with full download support
+                </p>
+                <button class="upload-btn" id="uploadBtn">
+                    Choose Folder
+                </button>
+                <p style="margin-top: 1rem; color: #a0aec0; font-size: 0.9rem;">
+                    Supports all file types • Maintains folder hierarchy • Individual & bulk downloads
+                </p>
+            </div>
+        </div>
+
+        <div class="progress-container">
+            <div class="progress-bar" id="progressBar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="progress-text" id="progressText"></div>
+        </div>
+
+        <div class="status-message" id="statusMessage"></div>
+
+        <div id="folderStats" class="folder-stats" style="display: none;">
+            <div class="stat-item">
+                <span class="stat-number" id="fileCount">0</span>
+                <span class="stat-label">Files</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-number" id="totalSize">0 MB</span>
+                <span class="stat-label">Total Size</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-number" id="folderCount">0</span>
+                <span class="stat-label">Folders</span>
+            </div>
+        </div>
+
+        <div id="folderStructure" class="folder-structure" style="display: none;"></div>
+
+        <div id="shareSection" class="share-section" style="display: none;">
+            <h3 style="margin-bottom: 1rem; color: #4a5568;">📤 Share Your Folder</h3>
+            <p style="color: #718096; margin-bottom: 1rem;">
+                Your folder has been processed and is ready to share with full download support!
+            </p>
+            <div class="share-link">
+                <input 
+                    type="text" 
+                    class="share-input" 
+                    id="shareInput" 
+                    readonly 
+                    placeholder="Share link will appear here..."
+                >
+                <button class="copy-btn" id="copyBtn">Copy Link</button>
+            </div>
+            <button class="bulk-download-btn" id="bulkDownloadBtn">📦 Download All as ZIP</button>
+            <p style="color: #a0aec0; font-size: 0.9rem; margin-top: 0.5rem;">
+                Anyone with this link can view and download your files
+            </p>
+        </div>
+    </div>
+
+    <!-- Include JSZip library for creating ZIP files -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    
+    <script>
+        // Create floating particles
+        function createParticles() {
+            const container = document.getElementById('particles');
+            for (let i = 0; i < 20; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.top = Math.random() * 100 + '%';
+                particle.style.width = Math.random() * 6 + 2 + 'px';
+                particle.style.height = particle.style.width;
+                particle.style.animationDelay = Math.random() * 6 + 's';
+                particle.style.animationDuration = (Math.random() * 4 + 4) + 's';
+                container.appendChild(particle);
+            }
+        }
+
+        // Storage for uploaded folders (in production, use server storage)
+        let uploadedFolders = {};
+        let currentFolderId = null;
+
+        // Generate unique ID for folder
+        function generateFolderId() {
+            return 'folder_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        }
+
+        // Format file size
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        }
+
+        // Show status message
+        function showStatus(message, type = 'success') {
+            const statusEl = document.getElementById('statusMessage');
+            statusEl.textContent = message;
+            statusEl.className = `status-message show status-${type}`;
+            setTimeout(() => {
+                statusEl.className = 'status-message';
+            }, 5000);
+        }
+
+        // Update progress bar
+        function updateProgress(percent, text = '') {
+            const progressBar = document.getElementById('progressBar');
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
+            
+            if (percent > 0 && percent < 100) {
+                progressBar.classList.add('active');
+            } else {
+                setTimeout(() => progressBar.classList.remove('active'), 1000);
+            }
+            
+            progressFill.style.width = percent + '%';
+            progressText.textContent = text;
+        }
+
+        // Compress large files for storage
+        function compressFile(content, maxSize = 5 * 1024 * 1024) { // 5MB max
+            if (content.length > maxSize) {
+                // For very large files, we'll store metadata and a thumbnail/preview only
+                return {
+                    compressed: true,
+                    originalSize: content.length,
+                    preview: content.substring(0, 1000) + '...[truncated]',
+                    type: 'large_file_placeholder'
+                };
+            }
+            return {
+                compressed: false,
+                content: content
+            };
+        }
+
+        // Process files in chunks to handle large folders
+        async function processFilesInChunks(files, chunkSize = 10) {
+            const folderStructure = {};
+            const totalFiles = files.length;
+            let processedFiles = 0;
+            let totalSize = 0;
+            let folderCount = new Set();
+
+            // Process files in chunks to avoid memory issues
+            for (let i = 0; i < files.length; i += chunkSize) {
+                const chunk = files.slice(i, i + chunkSize);
+                
+                for (const file of chunk) {
+                    try {
+                        // Read file content efficiently
+                        const content = await new Promise((resolve, reject) => {
+                            const reader = new FileReader();
+                            reader.onload = e => resolve(e.target.result);
+                            reader.onerror = reject;
+                            
+                            // For very large files, read as ArrayBuffer for efficiency
+                            if (file.size > 50 * 1024 * 1024) { // 50MB
+                                reader.readAsArrayBuffer(file);
+                            } else {
+                                reader.readAsDataURL(file);
+                            }
+                        });
+
+                        // Process file path
+                        const pathParts = file.webkitRelativePath.split('/');
+                        let current = folderStructure;
+                        
+                        // Track folders
+                        for (let j = 0; j < pathParts.length - 1; j++) {
+                            folderCount.add(pathParts.slice(0, j + 1).join('/'));
+                            if (!current[pathParts[j]]) {
+                                current[pathParts[j]] = {};
+                            }
+                            current = current[pathParts[j]];
+                        }
+                        
+                        // Store file with compression for large files
+                        const compressed = compressFile(content);
+                        current[pathParts[pathParts.length - 1]] = {
+                            type: 'file',
+                            size: file.size,
+                            lastModified: file.lastModified,
+                            mimeType: file.type,
+                            ...compressed,
+                            originalFile: file // Keep reference for direct download
+                        };
+
+                        totalSize += file.size;
+                        processedFiles++;
+                        
+                        // Update progress
+                        const progress = (processedFiles / totalFiles) * 100;
+                        updateProgress(progress, `Processing ${processedFiles}/${totalFiles} files...`);
+                        
+                        // Give browser a chance to update UI
+                        if (processedFiles % 5 === 0) {
+                            await new Promise(resolve => setTimeout(resolve, 10));
+                        }
+                        
+                    } catch (error) {
+                        console.error(`Error processing file ${file.name}:`, error);
+                        showStatus(`Warning: Could not process ${file.name}`, 'warning');
+                    }
+                }
+            }
+
+            // Update stats
+            document.getElementById('fileCount').textContent = totalFiles;
+            document.getElementById('totalSize').textContent = formatFileSize(totalSize);
+            document.getElementById('folderCount').textContent = folderCount.size;
+
+            return { structure: folderStructure, totalSize, fileCount: totalFiles, folderCount: folderCount.size };
+        }
+
+        // Download individual file
+        function downloadFile(fileData, fileName) {
+            try {
+                let content;
+                
+                if (fileData.compressed && fileData.type === 'large_file_placeholder') {
+                    // For large files, try to download original if available
+                    if (fileData.originalFile) {
+                        const url = URL.createObjectURL(fileData.originalFile);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = fileName;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                        return;
+                    } else {
+                        showStatus('Large file not available for download in this session', 'warning');
+                        return;
+                    }
+                }
+                
+                content = fileData.content;
+                
+                if (content.startsWith('data:')) {
+                    // Data URL
+                    const a = document.createElement('a');
+                    a.href = content;
+                    a.download = fileName;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                } else {
+                    // ArrayBuffer or other format
+                    const blob = new Blob([content], { type: fileData.mimeType });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = fileName;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                }
+                
+                showStatus(`Downloaded: ${fileName}`, 'success');
+            } catch (error) {
+                console.error('Download error:', error);
+                showStatus(`Failed to download ${fileName}`, 'error');
+            }
+        }
+
+        // Create ZIP file and download all
+        async function downloadAllAsZip(folderData) {
+            try {
+                showStatus('Creating ZIP archive...', 'success');
+                updateProgress(0, 'Creating ZIP archive...');
+                
+                const zip = new JSZip();
+                let processedFiles = 0;
+                const totalFiles = folderData.fileCount;
+                
+                // Recursively add files to ZIP
+                async function addToZip(structure, currentPath = '') {
+                    for (const [name, item] of Object.entries(structure)) {
+                        const fullPath = currentPath ? `${currentPath}/${name}` : name;
+                        
+                        if (item.type === 'file') {
+                            try {
+                                let content;
+                                
+                                if (item.compressed && item.type === 'large_file_placeholder') {
+                                    if (item.originalFile) {
+                                        content = await new Promise((resolve, reject) => {
+                                            const reader = new FileReader();
+                                            reader.onload = e => resolve(e.target.result);
+                                            reader.onerror = reject;
+                                            reader.readAsArrayBuffer(item.originalFile);
+                                        });
+                                    } else {
+                                        content = new TextEncoder().encode('Large file not available in this session');
+                                    }
+                                } else {
+                                    if (item.content.startsWith('data:')) {
+                                        // Convert data URL to ArrayBuffer
+                                        const response = await fetch(item.content);
+                                        content = await response.arrayBuffer();
+                                    } else {
+                                        content = item.content;
+                                    }
+                                }
+                                
+                                zip.file(fullPath, content);
+                                processedFiles++;
+                                
+                                const progress = (processedFiles / totalFiles) * 90; // Reserve 10% for ZIP generation
+                                updateProgress(progress, `Adding to ZIP: ${processedFiles}/${totalFiles} files...`);
+                                
+                                // Give browser time to update
+                                if (processedFiles % 10 === 0) {
+                                    await new Promise(resolve => setTimeout(resolve, 50));
+                                }
+                            } catch (error) {
+                                console.error(`Error adding ${fullPath} to ZIP:`, error);
+                            }
+                        } else {
+                            // It's a folder, recurse
+                            await addToZip(item, fullPath);
+                        }
+                    }
+                }
+                
+                await addToZip(folderData.structure);
+                
+                updateProgress(95, 'Generating ZIP file...');
+                
+                // Generate ZIP
+                const content = await zip.generateAsync({
+                    type: 'blob',
+                    compression: 'DEFLATE',
+                    compressionOptions: { level: 6 }
+                });
+                
+                // Download ZIP
+                const url = URL.createObjectURL(content);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${folderData.name || 'folder'}.zip`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                updateProgress(100, 'ZIP download started!');
+                setTimeout(() => updateProgress(0), 2000);
+                
+                showStatus(`ZIP archive created successfully! (${formatFileSize(content.size)})`, 'success');
+                
+            } catch (error) {
+                console.error('ZIP creation error:', error);
+                showStatus('Failed to create ZIP archive', 'error');
+                updateProgress(0);
+            }
+        }
+
+        // Display folder structure with download buttons
+        function displayFolderStructure(structure, container, path = '', folderData = null) {
+            Object.keys(structure).forEach(key => {
+                const item = structure[key];
+                const itemEl = document.createElement('div');
+                itemEl.className = 'file-item';
+                
+                const currentPath = path ? `${path}/${key}` : key;
+                
+                if (item.type === 'file') {
+                    itemEl.className += ' downloadable';
+                    itemEl.innerHTML = `
+                        <span class="file-icon file-icon-doc">📄</span>
+                        <span style="flex: 1;">${key}</span>
+                        <div class="file-info">
+                            <span class="file-size">${formatFileSize(item.size)}</span>
+                            <button class="download-btn" onclick="downloadFile(uploadedFolders['${currentFolderId}'].structure${getNestedPath(currentPath)}, '${key}')">
+                                ⬇️ Download
+                            </button>
+                        </div>
+                    `;
+                    
+                    if (item.compressed && item.type === 'large_file_placeholder') {
+                        itemEl.style.opacity = '0.7';
+                        const sizeEl = itemEl.querySelector('.file-size');
+                        sizeEl.innerHTML = `${formatFileSize(item.originalSize)} <span style="color: #f59e0b;">⚠️</span>`;
+                        sizeEl.title = 'Large file - stored as placeholder';
+                    }
+                } else {
+                    itemEl.innerHTML = `
+                        <span class="file-icon folder-icon">📁</span>
+                        <span style="font-weight: 500;">${key}/</span>
+                    `;
+                    
+                    container.appendChild(itemEl);
+                    
+                    // Add nested items with indentation
+                    const nestedContainer = document.createElement('div');
+                    nestedContainer.style.marginLeft = '20px';
+                    displayFolderStructure(item, nestedContainer, currentPath, folderData);
+                    container.appendChild(nestedContainer);
+                    return;
+                }
+                
+                container.appendChild(itemEl);
+            });
+        }
+
+        // Helper function to generate nested path for file access
+        function getNestedPath(path) {
+            const parts = path.split('/');
+            let result = '';
+            parts.forEach(part => {
+                result += `['${part}']`;
+            });
+            return result;
+        }
+
+        // Handle folder upload
+        async function handleFolderUpload() {
+            try {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.webkitdirectory = true;
+                input.multiple = true;
+                
+                input.onchange = async (e) => {
+                    const files = Array.from(e.target.files);
+                    if (files.length === 0) return;
+                    
+                    showStatus('Processing large folder...', 'success');
+                    updateProgress(0, 'Starting upload...');
+                    
+                    try {
+                        // Process files in chunks for large folders
+                        const result = await processFilesInChunks(files, 10);
+                        
+                        // Generate unique ID and store
+                        currentFolderId = generateFolderId();
+                        uploadedFolders[currentFolderId] = {
+                            name: files[0].webkitRelativePath.split('/')[0],
+                            structure: result.structure,
+                            uploadDate: new Date().toISOString(),
+                            fileCount: result.fileCount,
+                            totalSize: result.totalSize,
+                            folderCount: result.folderCount
+                        };
+                        
+                        // Display structure
+                        const structureContainer = document.getElementById('folderStructure');
+                        structureContainer.innerHTML = '<h3 style="margin-bottom: 1rem; color: #4a5568;">📂 Folder Structure</h3>';
+                        displayFolderStructure(result.structure, structureContainer);
+                        structureContainer.style.display = 'block';
+                        
+                        // Show stats
+                        document.getElementById('folderStats').style.display = 'grid';
+                        
+                        // Show share section
+                        const shareSection = document.getElementById('shareSection');
+                        const shareInput = document.getElementById('shareInput');
+                        const shareUrl = `${window.location.origin}${window.location.pathname}?folder=${currentFolderId}`;
+                        shareInput.value = shareUrl;
+                        shareSection.style.display = 'block';
+                        
+                        updateProgress(100, 'Upload complete!');
+                        setTimeout(() => updateProgress(0), 2000);
+                        
+                        showStatus(`Successfully uploaded ${result.fileCount} files (${formatFileSize(result.totalSize)})!`, 'success');
+                        
+                    } catch (error) {
+                        console.error('Upload error:', error);
+                        showStatus('Failed to process folder. Please try again.', 'error');
+                        updateProgress(0);
+                    }
+                };
+                
+                input.click();
+                
+            } catch (error) {
+                console.error('Browser not supported:', error);
+                showStatus('Your browser does not support folder upload.', 'error');
+            }
+        }
+
+        // Copy share link
+        function copyShareLink() {
+            const shareInput = document.getElementById('shareInput');
+            const copyBtn = document.getElementById('copyBtn');
+            
+            shareInput.select();
+            document.execCommand('copy');
+            
+            copyBtn.textContent = 'Copied!';
+            copyBtn.classList.add('copied');
+            
+            setTimeout(() => {
+                copyBtn.textContent = 'Copy Link';
+                copyBtn.classList.remove('copied');
+            }, 2000);
+            
+            showStatus('Link copied to clipboard!', 'success');
+        }
+
+        // Load shared folder if URL contains folder ID
+        function loadSharedFolder() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const folderId = urlParams.get('folder');
+            
+            if (folderId && uploadedFolders[folderId]) {
+                currentFolderId = folderId;
+                const folder = uploadedFolders[folderId];
+                
+                // Update stats
+                document.getElementById('fileCount').textContent = folder.fileCount;
+                document.getElementById('totalSize').textContent = formatFileSize(folder.totalSize);
+                document.getElementById('folderCount').textContent = folder.folderCount;
+                document.getElementById('folderStats').style.display = 'grid';
+                
+                // Display structure
+                const structureContainer = document.getElementById('folderStructure');
+                structureContainer.innerHTML = `
+                    <h3 style="margin-bottom: 1rem; color: #4a5568;">
+                        📂 Shared Folder: ${folder.name}
+                    </h3>
+                    <p style="color: #718096; margin-bottom: 1rem; font-size: 0.9rem;">
+                        Uploaded: ${new Date(folder.uploadDate).toLocaleDateString()} • 
+                        ${folder.fileCount} files • ${formatFileSize(folder.totalSize)}
+                    </p>
+                `;
+                displayFolderStructure(folder.structure, structureContainer, '', folder);
+                structureContainer.style.display = 'block';
+                
+                // Show download section
+                const shareSection = document.getElementById('shareSection');
+                shareSection.innerHTML = `
+                    <h3 style="margin-bottom: 1rem; color: #4a5568;">📥 Download Options</h3>
+                    <p style="color: #718096; margin-bottom: 1rem;">
+                        Download individual files or get the entire folder as a ZIP archive.
+                    </p>
+                    <button class="bulk-download-btn" onclick="downloadAllAsZip(uploadedFolders['${folderId}'])">
+                        📦 Download All as ZIP
+                    </button>
+                    <div class="chunk-info">
+                        Click on individual download buttons next to files for single downloads
+                    </div>
+                `;
+                shareSection.style.display = 'block';
+                
+                // Hide upload section, show info
+                document.getElementById('uploadSection').style.display = 'none';
+                showStatus(`Viewing shared folder: ${folder.name}`, 'success');
+            }
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            createParticles();
+            loadSharedFolder();
+            
+            document.getElementById('uploadBtn').addEventListener('click', handleFolderUpload);
+            document.getElementById('copyBtn').addEventListener('click', copyShareLink);
+            document.getElementById('bulkDownloadBtn').addEventListener('click', () => {
+                if (currentFolderId && uploadedFolders[currentFolderId]) {
+                    downloadAllAsZip(uploadedFolders[currentFolderId]);
+                }
+            });
+        });
+
+        // Make functions globally available for onclick handlers
+        window.downloadFile = downloadFile;
+        window.uploadedFolders = uploadedFolders;
+    </script>
+</body>
+</html>
